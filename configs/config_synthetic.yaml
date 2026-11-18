@@ -1,0 +1,93 @@
+seed: 42
+paths:
+  raw_csv: data/raw/SYNTHETIC_accepted.csv
+  duckdb: data/processed/synthetic.duckdb
+  processed_dir: data/processed
+  figures_dir: data/processed/synth_figures
+  reports_dir: data/processed/synth_reports
+loader:
+  min_raw_rows: 100000
+population:
+  term_months: 36
+  snapshot_date: '2018-12-31'
+target:
+  default_status:
+  - Charged Off
+  - Default
+  good_status:
+  - Fully Paid
+split:
+  train_years:
+  - 2007
+  - 2014
+  valid_clean_years:
+  - 2015
+  - 2015
+  valid_flagged_years:
+  - 2016
+  - 2016
+  shift_only_years:
+  - 2017
+  - 2018
+  sensitivity_train_years:
+  - 2012
+  - 2014
+  clean_min_resolved_share: 0.95
+features:
+  numeric:
+  - loan_amnt
+  - annual_inc
+  - dti
+  - fico_mid
+  - delinq_2yrs
+  - revol_util
+  - loan_to_income
+  categorical:
+  - emp_length
+  - home_ownership
+  - purpose
+  lc_numeric:
+  - int_rate
+  lc_categorical:
+  - grade
+  banned:
+  - funded_amnt
+  - out_prncp
+  - recoveries
+  - total_rec_prncp
+  - loan_status
+  - target
+  - total_pymnt
+  - collection_recovery_fee
+  - last_pymnt_d
+binning:
+  fine_bins: 20
+  min_bin_frac: 0.05
+  winsor_quantiles:
+  - 0.005
+  - 0.995
+  iv_min: 0.02
+  iv_suspicious: 0.5
+model:
+  logit_C: 1.0
+  class_weight: balanced
+  oof_folds: 5
+  lgbm:
+    n_estimators: 400
+    learning_rate: 0.03
+    num_leaves: 15
+    min_child_samples: 200
+    subsample: 0.8
+    colsample_bytree: 0.8
+    reg_lambda: 5.0
+decision:
+  el_appetite: 0.06
+  approval_grid:
+  - 0.3
+  - 0.4
+  - 0.5
+  - 0.6
+  - 0.7
+  - 0.8
+  - 0.9
+  - 1.0

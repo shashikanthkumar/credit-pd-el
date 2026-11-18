@@ -1,0 +1,66 @@
+# Single source of truth for seeds, split dates and rules. Notebooks and src/ read this.
+seed: 42
+
+paths:
+  raw_csv: data/raw/accepted_2007_to_2018Q4.csv   # produced by scripts/download_data.py
+  duckdb: data/processed/lending.duckdb
+  processed_dir: data/processed
+  figures_dir: figures
+  reports_dir: reports
+
+loader:
+  # Fail the build if DuckDB parsed fewer raw rows than this (ignore_errors=true can drop malformed rows
+  # silently). accepted_2007_to_2018Q4 has ~2.26M rows. Set null to disable for slices/synthetic data.
+  min_raw_rows: 2200000
+
+population:
+  term_months: 36              # uniform maturity window (see docs/decision_log.md D-01)
+  snapshot_date: "2018-12-31"  # last day covered by accepted_2007_to_2018Q4 (not Dec 1; see decision_log D-16)
+
+target:
+  default_status: ["Charged Off", "Default"]
+  good_status: ["Fully Paid"]
+  # Everything else (Current, Late, In Grace, "Does not meet the credit policy...") -> target NULL, excluded
+
+split:
+  train_years: [2007, 2014]
+  valid_clean_years: [2015, 2015]      # fully matured 36m vintage -> headline validation
+  valid_flagged_years: [2016, 2016]    # partially censored -> reported separately
+  shift_only_years: [2017, 2018]       # PSI only, never performance
+  sensitivity_train_years: [2012, 2014]
+  # An issue month enters the CLEAN validation only if fully matured AND at least this share of its
+  # loans is resolved; failing months are moved to the flagged-censored sample (decision_log D-16).
+  clean_min_resolved_share: 0.95
+
+features:
+  numeric: [loan_amnt, annual_inc, dti, fico_mid, delinq_2yrs, revol_util, loan_to_income]
+  categorical: [emp_length, home_ownership, purpose]
+  lc_numeric: [int_rate]               # LC's own pricing -> circular, excluded from champion
+  lc_categorical: [grade]
+  banned: [funded_amnt, out_prncp, recoveries, total_rec_prncp, loan_status, target,
+           total_pymnt, collection_recovery_fee, last_pymnt_d]
+
+binning:
+  fine_bins: 20
+  min_bin_frac: 0.05
+  winsor_quantiles: [0.005, 0.995]
+  iv_min: 0.02                         # drop features with IV below this
+  iv_suspicious: 0.5                   # flag as suspiciously strong
+
+model:
+  logit_C: 1.0
+  class_weight: balanced               # preferred over SMOTE
+  oof_folds: 5
+  lgbm:
+    n_estimators: 400
+    learning_rate: 0.03
+    num_leaves: 15
+    min_child_samples: 200
+    subsample: 0.8
+    colsample_bytree: 0.8
+    reg_lambda: 5.0
+
+decision:
+  # ASSUMED risk appetite: max expected-loss rate on approved exposure. Illustrative input, not a bank policy.
+  el_appetite: 0.06
+  approval_grid: [0.30, 0.40, 0.50, 0.60, 0.70, 0.80, 0.90, 1.00]

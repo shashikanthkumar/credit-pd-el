@@ -1,0 +1,6 @@
+# Optional cross-checks for notebook 03. NOT pinned/verified here: scorecardpy has had pandas/numpy
+# compatibility problems. Install in a separate venv, pin whatever works, and note the versions.
+# scorecardpy
+# skorecard
+# xgboost
+kaggle
