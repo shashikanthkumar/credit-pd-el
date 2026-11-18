@@ -7,7 +7,7 @@ Rules (all limits are learned on TRAIN only and re-applied, never refit on valid
      No mean/median imputation (it would hide the missingness signal and distort bin WoE).
   R3 impossible values -> NaN: dti < 0 or dti > 100(*), annual_inc <= 0, revol_util < 0, loan_amnt <= 0.
   R4 winsorise continuous features at train [0.5%, 99.5%] quantiles so extreme tails do not drive bin edges.
-  R5 rare categories (< min_bin_frac of train) are pooled to 'OTHER' inside the binner.
+  R5 rare categories (< min_bin_frac of train) are pooled to '_POOLED_' inside the binner (see woe.py).
   (*) dti of 999 is a known Lending Club sentinel.
 """
 import numpy as np
