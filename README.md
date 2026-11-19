@@ -1,4 +1,4 @@
-# credit-pd-el: probability-of-default model with out-of-time validation
+# Consumer Lending Risk: Predictive Modelling & Decision Analysis
 
 ## Scope statement
 Develop and evaluate a **probability-of-default (PD) model** on a public consumer-lending dataset (Lending Club accepted loans, 2007-2018Q4) with out-of-time validation, calibration and threshold selection. LGD and EAD are used **only as illustrative proxies** for an expected-loss decomposition.
