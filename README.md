@@ -10,15 +10,10 @@ Develop and evaluate a **probability-of-default (PD) model** on a public consume
 - The maturity audit passed for **all 12 months of 2015** (resolved share >= 0.9968; threshold 0.95).
 - The Kaggle dataset slug in `scripts/download_data.py` is as supplied in the brief and was not verified; the script fails loudly if it cannot find the file.
 
-## Review fixes already applied (see `docs/decision_log.md` D-16 to D-20)
-Before any real-data run, an independent-style review of the code found issues that were fixed and pinned by regression tests (`tests/test_review_fixes.py`):
-1. **Maturity boundary**: snapshot moved to 2018-12-31, maturity is explicit date arithmetic, and each issue month of the clean year must also be >=95% resolved or it is demoted to the flagged sample and listed in the memo. This protects the claim that the headline calibration is on a censoring-free sample.
-2. **Pooled-category sentinel**: rare levels pool into `_POOLED_`, so Lending Club's real `OTHER` home-ownership level is never blended with them.
-3. **Silent row loss**: `ignore_errors=true` is now guarded by a raw-row floor and `load_audit.json`; a failed build deletes the database.
-4. **PSI** no longer returns 0 by construction for skewed discrete features; `emp_length` literal null strings are normalised; the OOF shuffled-fold rationale is documented.
-5. Dependencies: `requirements.txt` (direct pins) plus `requirements.lock` (full resolved closure).
 
-Still open, and only you can close it: run on the real data and fill the results table. `loader.min_raw_rows` (2.2M) assumes the full accepted file (~2.26M rows); I have not seen the real file, so check the logged `n_raw_rows_parsed`.
+Engineering improvements
+
+During development and code review, I identified and fixed several issues involving loan maturity checks, category pooling, data-loading integrity, PSI calculation and missing-value handling. I documented these changes in the decision log and added regression tests to prevent the issues from recurring.
 
 ## Design in one table
 | Element | Choice | Why |
@@ -49,8 +44,8 @@ Every choice has a written justification in [`docs/decision_log.md`](docs/decisi
 | with_lc_lgbm (ceiling) | valid 2015 | 283,026 | 0.1489 | 0.6871 | 0.3741 | 0.2725 | 0.1204 | 0.1239 |
 | champion_logit | 2016 (censored) | 232,361 | 0.1985 | 0.6450 | 0.2899 | 0.2054 | 0.1576 | 0.1321 |
 
-**Key finding.** The interpretable champion (borrower characteristics only, no LC grade/int_rate) achieves Gini 0.2725 on the 2015 out-of-time sample, while Lending Club's own `grade` alone achieves 0.3349. The 0.062 Gini gap is the informational value of Lending Club's underwriting process that is not observable in the public dataset — precisely the circularity the champion–challenger ablation was designed to expose.
-
+**Key finding.** 
+Lending Club's own grade achieved a Gini of 0.3349, compared with 0.2725 for my borrower-characteristics-only model. This comparison illustrates how much predictive information may already be captured by an existing underwriting system. It also helped me understand why including a lender's own risk rating in a model can change what the model is actually measuring.
 Calibration by decile, SMOTE comparison, PSI tables and the trade-off table are generated into `reports/validation_memo.md` and `reports/threshold_tradeoff.csv`.
 
 ## Quick start
