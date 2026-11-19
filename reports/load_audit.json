@@ -1,0 +1,18 @@
+{
+  "n_raw_rows_parsed": 2260701,
+  "min_raw_rows": 2200000,
+  "ratio_to_min": 1.0275913636363636,
+  "n_model_frame_rows": 1609754,
+  "raw_rows_by_loan_status": {
+    "Fully Paid": 1076751,
+    "Current": 878317,
+    "Charged Off": 268559,
+    "Late (31-120 days)": 21467,
+    "In Grace Period": 8436,
+    "Late (16-30 days)": 4349,
+    "Does not meet the credit policy. Status:Fully Paid": 1988,
+    "Does not meet the credit policy. Status:Charged Off": 761,
+    "Default": 40,
+    "<NULL>": 33
+  }
+}
