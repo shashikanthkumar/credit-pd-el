@@ -3,7 +3,7 @@
 ## Scope statement
 Develop and evaluate a **probability-of-default (PD) model** on a public consumer-lending dataset (Lending Club accepted loans, 2007-2018Q4) with out-of-time validation, calibration and threshold selection. LGD and EAD are used **only as illustrative proxies** for an expected-loss decomposition.
 
-> **This is a PD model, not a Basel/IRB-compliant credit risk framework.** LGD and EAD are proxy extensions, not production models. Results describe a public dataset of *accepted* loans, not a bank book.
+-The project focuses on probability of default (PD) modelling. LGD and EAD are included as illustrative proxies for expected-loss analysis. The results are based on Lending Club's accepted-loan dataset and should not be interpreted as a bank-level credit risk model.
 
 ## Status: read this first
 - The full pipeline has run on the real Lending Club file: **2,260,701 raw rows parsed; 1,609,754 36-month loans** in `model_frame`. Results are in the table below and in `reports/validation_memo.md`.
