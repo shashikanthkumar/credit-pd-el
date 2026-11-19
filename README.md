@@ -1,87 +1,219 @@
+
 # Consumer Lending Risk: Predictive Modelling & Decision Analysis
 
-## Scope statement
-Develop and evaluate a **probability-of-default (PD) model** on a public consumer-lending dataset (Lending Club accepted loans, 2007-2018Q4) with out-of-time validation, calibration and threshold selection. LGD and EAD are used **only as illustrative proxies** for an expected-loss decomposition.
+## Scope
 
--The project focuses on probability of default (PD) modelling. LGD and EAD are included as illustrative proxies for expected-loss analysis. The results are based on Lending Club's accepted-loan dataset and should not be interpreted as a bank-level credit risk model.
+This project develops and evaluates a **probability-of-default (PD) model** using the public Lending Club accepted-loan dataset (2007–2018 Q4). It covers out-of-time validation, probability calibration and approval-threshold analysis.
 
-## Status: read this first
-- The full pipeline has run on the real Lending Club file: **2,260,701 raw rows parsed; 1,609,754 36-month loans** in `model_frame`. Results are in the table below and in `reports/validation_memo.md`.
-- The maturity audit passed for **all 12 months of 2015** (resolved share >= 0.9968; threshold 0.95).
-- The Kaggle dataset slug in `scripts/download_data.py` is as supplied in the brief and was not verified; the script fails loudly if it cannot find the file.
+LGD and EAD are included as illustrative proxies to demonstrate expected-loss decomposition. The analysis is based on Lending Club's accepted loans and is not intended to represent a bank-level credit risk model.
 
+## Project status
 
-Engineering improvements
+The complete pipeline has been executed on the real Lending Club dataset.
 
-During development and code review, I identified and fixed several issues involving loan maturity checks, category pooling, data-loading integrity, PSI calculation and missing-value handling. I documented these changes in the decision log and added regression tests to prevent the issues from recurring.
+- **Raw records parsed:** 2,260,701
+- **36-month loans in model_frame:** 1,609,754
+- **Clean validation sample:** 283,026 loans from 2015
+- **Maturity audit:** Passed for all 12 months of 2015, with a minimum resolved share of 0.9968 against a 0.95 threshold.
 
-## Design in one table
-| Element | Choice | Why |
+The results are available below and in `reports/validation_memo.md`.
+
+The Kaggle dataset slug configured in `scripts/download_data.py` follows the project setup. The download script checks for the expected file and reports an error if it cannot be located.
+
+### Engineering improvements
+
+During development and code review, I identified and fixed several issues involving loan maturity checks, category pooling, data-loading integrity, PSI calculation and missing-value handling.
+
+These changes are documented in `docs/decision_log.md` and covered by regression tests in `tests/test_review_fixes.py`.
+
+## Modelling approach
+
+| Element | Choice | Reason |
 |---|---|---|
-| Population | 36-month loans | uniform maturity window; snapshot is right-censored |
-| Target | Charged Off/Default=1, Fully Paid=0; others excluded | unknown outcomes are not assumed |
-| Train | issue year 2007-2014 (sensitivity: 2012-14) | |
-| **Clean validation** | **2015** (only fully matured OOT vintage), month-by-month audited | headline performance + calibration |
-| Flagged validation | 2016, labelled *partially censored* | reported separately |
-| Shift only | 2017-2018 | PSI only, never performance |
-| Champion | logistic regression on monotone WoE bins, **no LC grade/int_rate** | interpretable; avoids circularity |
-| Challenger | LightGBM, monotone constraints | promoted only if Gini uplift >= 0.02 and calibration not worse |
-| Imbalance | class weights; SMOTE tested once as negative result | SMOTE inflates PD level -> provisioning bias |
-| Calibration | Platt on train out-of-fold scores; oracle intercept shift as diagnostic only | no validation leakage |
-| Threshold | expected-loss vs approval-rate trade-off under an *assumed* appetite | not F1 |
-| PSI | labelled a distribution-shift metric | uses no outcomes |
+| Population | 36-month loans | Maintains a consistent maturity window |
+| Target | Charged Off/Default = 1, Fully Paid = 0 | Excludes loans with unresolved outcomes |
+| Training period | Issue years 2007–2014 | Historical training sample |
+| Sensitivity analysis | Issue years 2012–2014 | Checks sensitivity to the training period |
+| Clean validation | 2015 | Fully matured out-of-time validation vintage |
+| Flagged validation | 2016 | Reported separately because of partial censoring |
+| Distribution monitoring | 2017–2018 | Used for PSI analysis, not model performance |
+| Champion model | Logistic Regression with monotonic WoE bins | Interpretability and exclusion of Lending Club's own risk ratings |
+| Challenger model | LightGBM with monotonic constraints | Tests whether a more flexible model improves predictive performance |
+| Imbalance handling | Class weights | SMOTE was also tested as a comparison |
+| Calibration | Platt scaling using out-of-fold training predictions | Avoids fitting calibration on the validation sample |
+| Threshold selection | Expected-loss versus approval-rate analysis | Connects model predictions to lending decisions |
+| Stability monitoring | Population Stability Index (PSI) | Monitors changes in feature distributions |
 
-Every choice has a written justification in [`docs/decision_log.md`](docs/decision_log.md) and in the notebook markdown.
+The challenger has a predefined promotion criterion: a Gini improvement of at least 0.02, provided calibration is not worse.
 
-## Results (real Lending Club data, run 2026-11-19)
+Each major modelling decision is explained in [`docs/decision_log.md`](docs/decision_log.md) and the notebook documentation.
 
-| Model | Sample | n | Default rate | AUC | Gini | KS | Brier | Mean PD |
-|---|---|---|---|---|---|---|---|---|
-| champion_logit | valid 2015 | 283,026 | 0.1489 | 0.6363 | 0.2725 | 0.1980 | 0.1232 | 0.1364 |
-| challenger_lgbm | valid 2015 | 283,026 | 0.1489 | 0.6492 | 0.2983 | 0.2155 | 0.1225 | 0.1368 |
-| grade_only_logit (benchmark) | valid 2015 | 283,026 | 0.1489 | 0.6675 | 0.3349 | 0.2616 | 0.1215 | 0.1280 |
-| with_lc_logit (incremental lift) | valid 2015 | 283,026 | 0.1489 | 0.6834 | 0.3669 | 0.2670 | 0.1208 | 0.1234 |
-| with_lc_lgbm (ceiling) | valid 2015 | 283,026 | 0.1489 | 0.6871 | 0.3741 | 0.2725 | 0.1204 | 0.1239 |
+## Results
+
+The following results were obtained from the real Lending Club dataset. The clean validation sample is the 2015 out-of-time vintage.
+
+| Model | Sample | Observations | Default rate | AUC | Gini | KS | Brier | Mean PD |
+|---|---|---:|---:|---:|---:|---:|---:|---:|
+| champion_logit | Valid 2015 | 283,026 | 0.1489 | 0.6363 | 0.2725 | 0.1980 | 0.1232 | 0.1364 |
+| challenger_lgbm | Valid 2015 | 283,026 | 0.1489 | 0.6492 | 0.2983 | 0.2155 | 0.1225 | 0.1368 |
+| grade_only_logit (benchmark) | Valid 2015 | 283,026 | 0.1489 | 0.6675 | 0.3349 | 0.2616 | 0.1215 | 0.1280 |
+| with_lc_logit (incremental lift) | Valid 2015 | 283,026 | 0.1489 | 0.6834 | 0.3669 | 0.2670 | 0.1208 | 0.1234 |
+| with_lc_lgbm (ceiling) | Valid 2015 | 283,026 | 0.1489 | 0.6871 | 0.3741 | 0.2725 | 0.1204 | 0.1239 |
 | champion_logit | 2016 (censored) | 232,361 | 0.1985 | 0.6450 | 0.2899 | 0.2054 | 0.1576 | 0.1321 |
 
-**Key finding.** 
-Lending Club's own grade achieved a Gini of 0.3349, compared with 0.2725 for my borrower-characteristics-only model. This comparison illustrates how much predictive information may already be captured by an existing underwriting system. It also helped me understand why including a lender's own risk rating in a model can change what the model is actually measuring.
-Calibration by decile, SMOTE comparison, PSI tables and the trade-off table are generated into `reports/validation_memo.md` and `reports/threshold_tradeoff.csv`.
+### Key finding
+
+Lending Club's own grade achieved a Gini of 0.3349, compared with 0.2725 for my borrower-characteristics-only model.
+
+This comparison illustrates the predictive information contained in an existing underwriting assessment and highlights why including a lender's own risk rating can change what a model is actually measuring.
+
+The challenger LightGBM model achieved a Gini of 0.2983, compared with 0.2725 for the logistic regression champion. Its Brier score was also marginally lower (0.1225 versus 0.1232).
+
+Calibration by decile, SMOTE comparison, PSI tables and approval-rate trade-off analysis are available in:
+
+- `reports/validation_memo.md`
+- `reports/threshold_tradeoff.csv`
 
 ## Quick start
+
+### 1. Clone the repository
+
 ```bash
-python -m venv .venv && source .venv/bin/activate
-make install       # or: pip install -r requirements.lock for the exact resolved set
-# put Kaggle credentials in ~/.kaggle/kaggle.json, then:
-make data        # downloads data/raw/accepted_2007_to_2018Q4.csv
+git clone https://github.com/shashikanthkumar/credit-pd-el.git
+cd credit-pd-el
+```
+
+### 2. Create a virtual environment
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+```
+
+On Windows:
+
+```powershell
+python -m venv .venv
+.venv\Scripts\activate
+```
+
+### 3. Install dependencies
+
+```bash
+make install
+```
+
+Alternatively, install the exact resolved dependencies:
+
+```bash
+pip install -r requirements.lock
+```
+
+### 4. Download the dataset
+
+Configure Kaggle credentials in `~/.kaggle/kaggle.json`, then run:
+
+```bash
+make data
+```
+
+The expected dataset file is:
+
+`data/raw/accepted_2007_to_2018Q4.csv`
+
+### 5. Run tests and generate reports
+
+```bash
 make test
-make report      # runs everything; writes reports/ and figures/
-jupyter lab      # then run notebooks 01 -> 06, or 99 for the one-shot version
-make smoke       # synthetic-data plumbing check (numbers meaningless)
+make report
 ```
 
-## Layout
-```
-configs/config.yaml        seeds, split years, term filter, features, appetite (single source of truth)
-sql/                       01 schema, 02 load raw (DuckDB), 03 model_frame (typing, target, vintage, maturity flags)
-src/data                   DuckDB loader, cleaning + documented missing-value rules
-src/features               WoE/IV binner, leakage guards
-src/models                 PD logit + LightGBM, calibration, LGD/EAD proxies
-src/evaluation             AUC/Gini/KS/Brier, decile calibration, PSI, plots
-src/decision               EL-vs-approval-rate threshold table
-src/pipeline.py            end-to-end run; src/reporting.py writes reports from actual results
-notebooks/                 01 data+SQL, 02 EDA+vintage, 03 WoE/IV, 04 champion/challenger,
-                           05 calibration+threshold, 06 EL proxy+PSI, 99 orchestrator
-tests/                     binning monotonicity, WoE/IV identities, metrics vs known cases, leakage guard, split bounds
-reports/                   model_card.md, validation_memo.md, threshold_tradeoff.csv (generated)
+The pipeline generates reports and figures in their respective directories.
+
+### 6. Launch Jupyter
+
+```bash
+jupyter lab
 ```
 
-## Limitations (do not overclaim)
-- **Accepted loans only**: no reject inference; the model describes approved applicants.
-- **Single snapshot, not a performance panel**; 2015 is a single clean validation vintage (one macro regime).
-- **Right-censoring** handled by design (36m, 2015-only headline), not eliminated; 2016 is shown but flagged.
-- LC `grade`/`int_rate` are LC's own risk output; excluded from the champion, shown as an incremental-lift variant.
-- **LGD/EAD are proxies**: undiscounted recoveries, no downturn LGD, no segmentation. EL appetite is an assumed input, not bank policy. Cost of rejected good loans (foregone margin) is not modelled.
-- Recalibration restores the training base rate; it cannot anticipate a shifted one. Monitor observed/expected.
-- PSI is distribution shift, **not** performance. IV and PSI thresholds are conventions, not statistical tests.
-- No Basel/IRB elements: no PD floors, margin of conservatism, downturn calibration or regulatory capital.
+Run notebooks `01` through `06` in sequence, or use notebook `99` to execute the complete workflow.
+
+### 7. Run a synthetic-data check
+
+```bash
+make smoke
+```
+
+This checks pipeline functionality using synthetic data. Its results should not be interpreted as model performance.
+
+## Repository structure
+
+```text
+configs/
+    config.yaml              Model settings, split years and features
+
+data/
+    raw/                     Downloaded source data
+
+sql/
+    01_schema
+    02_load_raw              Raw data ingestion using DuckDB
+    03_model_frame           Data typing, target and maturity flags
+
+src/
+    data/                    Data loading and cleaning
+    features/                WoE/IV binning and leakage checks
+    models/                  Logistic Regression, LightGBM and calibration
+    evaluation/              Performance metrics, PSI and plots
+    decision/                Expected-loss and approval-rate analysis
+    pipeline.py              End-to-end pipeline
+    reporting.py             Report generation
+
+notebooks/
+    01–06                     Step-by-step analysis
+    99                        Complete workflow
+
+tests/
+    WoE/IV, metrics, leakage,
+    split boundaries and regression tests
+
+reports/
+    model_card.md
+    validation_memo.md
+    threshold_tradeoff.csv
+
+figures/
+    Generated evaluation figures
+
+docs/
+    decision_log.md
+```
+
+## Limitations and considerations
+
+- **Accepted loans only:** The dataset contains approved loans. Reject inference is not performed, so the model does not describe all loan applicants.
+- **Single snapshot:** The analysis uses a single dataset snapshot rather than a complete performance panel. The 2015 validation vintage represents one macroeconomic period.
+- **Right-censoring:** The 36-month loan filter and maturity audit reduce the impact of incomplete outcomes. The 2016 sample remains flagged for partial censoring.
+- **Lending Club risk variables:** Grade and interest rate reflect Lending Club's own underwriting process. They are excluded from the champion model and included separately for comparison.
+- **LGD and EAD:** These are illustrative proxies based on available recovery information. They do not represent production-grade estimates, downturn LGD or portfolio segmentation.
+- **Expected loss:** The approval appetite is an assumed modelling input, not an actual bank policy. The cost of rejected good loans is not included.
+- **Calibration:** Recalibration can adjust predicted probabilities to a reference base rate, but it cannot anticipate future changes in default behaviour.
+- **PSI:** Measures changes in feature distributions, not predictive performance. PSI and IV thresholds are conventions rather than statistical tests.
+- **Regulatory scope:** The project does not implement Basel or IRB requirements such as regulatory PD floors, margin of conservatism, downturn calibration or regulatory capital calculations.
+
+## Technologies
+
+- **Programming:** Python
+- **Data processing:** SQL, DuckDB, Pandas
+- **Modelling:** Scikit-learn, LightGBM
+- **Evaluation:** AUC, Gini, KS, Brier score, calibration and PSI
+- **Development:** Jupyter Notebook, Git, automated testing
+
+## Author
+
+**Shashikanth Kumar Sole**
+
+MSc Data Science and Business Analytics  
+University of Warsaw
+
+[GitHub](https://github.com/shashikanthkumar)
