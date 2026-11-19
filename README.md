@@ -6,8 +6,8 @@ Develop and evaluate a **probability-of-default (PD) model** on a public consume
 > **This is a PD model, not a Basel/IRB-compliant credit risk framework.** LGD and EAD are proxy extensions, not production models. Results describe a public dataset of *accepted* loans, not a bank book.
 
 ## Status: read this first
-- The full pipeline (SQL -> cleaning -> WoE -> models -> calibration -> threshold -> PSI -> reports), all 7 notebooks and 22 unit tests were **executed end to end on synthetic Lending-Club-shaped data** (`make smoke`) to verify the plumbing.
-- It has **not yet been run on the real Kaggle data** (no Kaggle access in the build environment). **The results table below is intentionally empty**; run `make data && make report` and paste the numbers from `reports/validation_memo.md`. No performance number in this repo comes from real data until you do that.
+- The full pipeline has run on the real Lending Club file: **2,260,701 raw rows parsed; 1,609,754 36-month loans** in `model_frame`. Results are in the table below and in `reports/validation_memo.md`.
+- The maturity audit passed for **all 12 months of 2015** (resolved share >= 0.9968; threshold 0.95).
 - The Kaggle dataset slug in `scripts/download_data.py` is as supplied in the brief and was not verified; the script fails loudly if it cannot find the file.
 
 ## Review fixes already applied (see `docs/decision_log.md` D-16 to D-20)
@@ -38,14 +38,18 @@ Still open, and only you can close it: run on the real data and fill the results
 
 Every choice has a written justification in [`docs/decision_log.md`](docs/decision_log.md) and in the notebook markdown.
 
-## Results (fill after `make report` on real data)
+## Results (real Lending Club data, run 2026-11-19)
+
 | Model | Sample | n | Default rate | AUC | Gini | KS | Brier | Mean PD |
 |---|---|---|---|---|---|---|---|---|
-| champion_logit | valid 2015 | | | | | | | |
-| challenger_lgbm | valid 2015 | | | | | | | |
-| grade_only_logit (benchmark) | valid 2015 | | | | | | | |
-| with_lc_logit (incremental lift) | valid 2015 | | | | | | | |
-| champion_logit | 2016 *(censored)* | | | | | | | |
+| champion_logit | valid 2015 | 283,026 | 0.1489 | 0.6363 | 0.2725 | 0.1980 | 0.1232 | 0.1364 |
+| challenger_lgbm | valid 2015 | 283,026 | 0.1489 | 0.6492 | 0.2983 | 0.2155 | 0.1225 | 0.1368 |
+| grade_only_logit (benchmark) | valid 2015 | 283,026 | 0.1489 | 0.6675 | 0.3349 | 0.2616 | 0.1215 | 0.1280 |
+| with_lc_logit (incremental lift) | valid 2015 | 283,026 | 0.1489 | 0.6834 | 0.3669 | 0.2670 | 0.1208 | 0.1234 |
+| with_lc_lgbm (ceiling) | valid 2015 | 283,026 | 0.1489 | 0.6871 | 0.3741 | 0.2725 | 0.1204 | 0.1239 |
+| champion_logit | 2016 (censored) | 232,361 | 0.1985 | 0.6450 | 0.2899 | 0.2054 | 0.1576 | 0.1321 |
+
+**Key finding.** The interpretable champion (borrower characteristics only, no LC grade/int_rate) achieves Gini 0.2725 on the 2015 out-of-time sample, while Lending Club's own `grade` alone achieves 0.3349. The 0.062 Gini gap is the informational value of Lending Club's underwriting process that is not observable in the public dataset — precisely the circularity the champion–challenger ablation was designed to expose.
 
 Calibration by decile, SMOTE comparison, PSI tables and the trade-off table are generated into `reports/validation_memo.md` and `reports/threshold_tradeoff.csv`.
 
