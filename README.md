@@ -209,11 +209,3 @@ docs/
 - **Evaluation:** AUC, Gini, KS, Brier score, calibration and PSI
 - **Development:** Jupyter Notebook, Git, automated testing
 
-## Author
-
-**Shashikanth Kumar Sole**
-
-MSc Data Science and Business Analytics  
-University of Warsaw
-
-[GitHub](https://github.com/shashikanthkumar)
